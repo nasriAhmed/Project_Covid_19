@@ -68,15 +68,11 @@ model = Sequential()
 model.add(Bidirectional(LSTM(5, return_sequences=True),input_shape=(n_input,n_features)))
 model.add(Bidirectional(LSTM(5)))
 
-#model.add(Dense(256, activation='relu'))
-#model.add(Dense(256, activation='relu'))
-#model.add(Dense(64, activation='relu'))
+
 model.add(Activation('softmax'))
 
 model.add(Dense(units=1))
 
-#dot_img_file = 'C:/Users/MSI/Desktop/Memoire/ProjetMemoire/Dataset/model_BBlstm_afri_final.png'
-#tf.keras.utils.plot_model(model, to_file=dot_img_file, show_shapes=True)
 model.compile(optimizer="adam",loss="mse")
 
 model.summary()
@@ -86,7 +82,7 @@ validation_set = np.append(scaled_train[55],scaled_test)
 print("****")
 print(validation_set)
 print("****")
-validation_set= validation_set.reshape(6,1) #A verifier
+validation_set= validation_set.reshape(6,1)
 validation_set
 
 ## how to decide num of inputs ,
@@ -108,13 +104,11 @@ print(x)
 print("The time used to execute this is given below")
 end = time.time()
 print(end - start)
-#pd.DataFrame(model.history.history).plot(title="loss vs epochs curve")
 #****************  Performance du modèle *************
 
 model.history.history.keys()
 myloss = model.history.history["val_loss"]
-#plt.title("validation loss vs epochs")
-#plt.plot(range(len(myloss)),myloss)
+
 
 #prévision
 ## holding predictions
@@ -162,7 +156,6 @@ print("MAPE is " + str(MAPE*100) + " %")
 from math import sqrt
 from sklearn.metrics import mean_squared_error
 #****RMSE******
-#RMSE =np.sqrt(((np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5])) ** 2).mean())
 RMSE = sqrt(mean_squared_error(np.array(df_forecast["confirmed"][:5]),np.array(df_forecast["confirmed_predicted"][:5])))
 
 #RMSE = np.sqrt(np.abs(np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5]))).mean()

@@ -65,7 +65,7 @@ x,y = generator[50]
 print((x,y))
 #Quantum Model
 
-n_qubits = 8
+n_qubits = 4
 dev = qml.device('default.qubit', wires=n_qubits)
 
 @qml.qnode(dev)
@@ -78,25 +78,17 @@ def qnode(inputs, weights_0, weight_1):
     return qml.expval(qml.PauliZ(0)), qml.expval(qml.PauliZ(1))
 weight_shapes = {"weights_0": 3, "weight_1":1}
 #************* Construction du modèle LSTM ***************
-#clayer1 = tf.keras.layers.Dense(2)
-#clayer1 = tf.keras.layers.LSTM(4)
-#clayer1=tf.keras.layers.GRU(75, input_shape=(1,1))
-#clayer1 = tf.keras.layers.LSTM(4)
 
 
-clayer1 = tf.keras.layers.GRU(75,activation="relu",input_shape=(n_input,n_features))
-#clayer1 = tf.keras.layers.Bidirectional(LSTM(10, return_sequences=True),input_shape=(n_input,n_features)))
 
-calyer3 = tf.keras.layers.Dense(15)
-#calyer4 = tf.keras.layers.Dense(256)
-#clayer5 = tf.keras.layers.Dense(64)
+clayer1 = tf.keras.layers.GRU(15,activation="relu",input_shape=(n_input,n_features))
+
+calyer3 = tf.keras.layers.Dense(75)
 qlayer = qml.qnn.KerasLayer(qnode, weight_shapes, output_dim=2)
-#clayer11= tf.keras.layers.Dropout(.2, input_shape=(n_input,))
 clayer6 = tf.keras.layers.Dense(1)
-#hybrid_model = tf.keras.models.Sequential([clayer1,calyer3,calyer4,clayer5,qlayer,clayer11,clayer6])
 hybrid_model = tf.keras.models.Sequential([clayer1,qlayer,clayer6])
 opt = tf.keras.optimizers.SGD(learning_rate=0.5)
-dot_img_file = 'C:/Users/MSI/Desktop/Nasrii/Memoire/ProjetMemoire/Dataset/model_gru_qnn_final.png'
+dot_img_file = '../Dataset/model_simple_gru_quantum_medical.png'
 tf.keras.utils.plot_model(hybrid_model, to_file=dot_img_file, show_shapes=True)
 hybrid_model.compile(opt, loss='mae')
 
@@ -127,7 +119,6 @@ print(x)
 print("The time used to execute this is given below")
 end = time.time()
 print(end - start)
-#pd.DataFrame(model.history.history).plot(title="loss vs epochs curve")
 #****************  Performance du modèle *************
 
 hybrid_model.history.history.keys()
@@ -156,9 +147,7 @@ for i in range(len(test)+7):
     print("current_pred")
     print(current_pred)
     test_prediction.append(current_pred)
-    current_batch = np.append(current_batch[:,1:,:], [[current_pred]], axis=1) #a verifier
-    #current_batch = np.append(current_batch[:, 1:, :], [[current_pred]], axis=1)
-    #np.append(current_batch[:, 1:, :], [[[99]]], axis=1)
+    current_batch = np.append(current_batch[:,1:,:], [[current_pred]], axis=1)
 print(test_prediction)
 print(current_pred)
 print("*****")
