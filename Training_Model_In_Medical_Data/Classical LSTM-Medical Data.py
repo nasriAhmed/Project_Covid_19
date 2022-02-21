@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from keras.preprocessing.sequence import TimeseriesGenerator
 from keras.models import Sequential
-from keras.layers import Dense, LSTM, Dropout, Activation,GRU,SimpleRNN
+from keras.layers import Dense, LSTM, Dropout, Activation
 from tensorflow.keras.callbacks import EarlyStopping
 import time
 url = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
@@ -63,7 +63,7 @@ import tensorflow as tf
 
 
 model = Sequential()
-model.add(SimpleRNN(75,activation="relu",input_shape=(n_input,n_features)))
+model.add(LSTM(5,activation="relu",input_shape=(n_input,n_features)))
 model.add(Dense(75, activation='relu'))
 #model.add(Dropout(0.3))
 #model.add(Dense(units=1))
@@ -158,9 +158,15 @@ MAPE = np.mean(np.abs(np.array(df_forecast["confirmed"][:5]) - np.array(df_forec
 print("MAPE is " + str(MAPE*100) + " %")
 
 #****RMSE******
-RMSE =np.sqrt(((np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5])) ** 2).mean())
+print("MAPE is " + str(MAPE*100) + " %")
+from math import sqrt
+from sklearn.metrics import mean_squared_error
+#****RMSE******
+#RMSE =np.sqrt(((np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5])) ** 2).mean())
+RMSE = sqrt(mean_squared_error(np.array(df_forecast["confirmed"][:5]),np.array(df_forecast["confirmed_predicted"][:5])))
+
 #RMSE = np.sqrt(np.abs(np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5]))).mean()
-print("RMSE is " + str(RMSE))
+print("RMSE is " + str(round(RMSE,3)))
 
 #****stdev******
 stdev = np.sqrt(1/(5-2) * RMSE)

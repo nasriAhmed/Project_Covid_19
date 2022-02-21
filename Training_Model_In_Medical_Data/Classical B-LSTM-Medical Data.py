@@ -159,11 +159,14 @@ plt.show()
 #****MAPE******
 MAPE = np.mean(np.abs(np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5]))/np.array(df_forecast["confirmed"][:5]))
 print("MAPE is " + str(MAPE*100) + " %")
-
+from math import sqrt
+from sklearn.metrics import mean_squared_error
 #****RMSE******
-RMSE =np.sqrt(((np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5])) ** 2).mean())
+#RMSE =np.sqrt(((np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5])) ** 2).mean())
+RMSE = sqrt(mean_squared_error(np.array(df_forecast["confirmed"][:5]),np.array(df_forecast["confirmed_predicted"][:5])))
+
 #RMSE = np.sqrt(np.abs(np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5]))).mean()
-print("RMSE is " + str(RMSE))
+print("RMSE is " + str(round(RMSE,3)))
 
 #****stdev******
 stdev = np.sqrt(1/(5-2) * RMSE)
