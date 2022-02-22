@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from keras.preprocessing.sequence import TimeseriesGenerator
 from keras.models import Sequential
-from keras.layers import Dense, LSTM, Dropout, Activation,GRU,SimpleRNN
+from keras.layers import Dense, LSTM, Dropout, Activation
 from tensorflow.keras.callbacks import EarlyStopping
 import time
 url = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
@@ -63,14 +63,13 @@ import tensorflow as tf
 
 
 model = Sequential()
-model.add(SimpleRNN(75,activation="relu",input_shape=(n_input,n_features)))
+model.add(LSTM(5,activation="relu",input_shape=(n_input,n_features)))
 model.add(Dense(75, activation='relu'))
 
 model.add(Dense(1))
 #Adam est un algorithme d'optimisation qui peut être utilisé à la place de la procédure classique de descente de
 # gradient stochastique pour mettre à jour les poids du réseau itératif en fonction des données d'entraînement
 
-#tf.keras.utils.plot_model(model, to_file=dot_img_file, show_shapes=True)
 model.compile(optimizer="adam",loss="mse")
 
 model.summary()
@@ -106,8 +105,7 @@ print(end - start)
 
 model.history.history.keys()
 myloss = model.history.history["val_loss"]
-#plt.title("validation loss vs epochs")
-#plt.plot(range(len(myloss)),myloss)
+
 
 #prévision
 ## holding predictions
@@ -154,14 +152,14 @@ MAPE = np.mean(np.abs(np.array(df_forecast["confirmed"][:5]) - np.array(df_forec
 print("MAPE is " + str(MAPE*100) + " %")
 
 #****RMSE******
-#****RMSE******
 print("MAPE is " + str(MAPE*100) + " %")
 from math import sqrt
 from sklearn.metrics import mean_squared_error
 #****RMSE******
 RMSE = sqrt(mean_squared_error(np.array(df_forecast["confirmed"][:5]),np.array(df_forecast["confirmed_predicted"][:5])))
 
-print("RMSE is " + str((RMSE)))
+print("RMSE is " + str(round(RMSE,3)))
+
 #****stdev******
 stdev = np.sqrt(1/(5-2) * RMSE)
 print(stdev)
@@ -182,7 +180,6 @@ fig= plt.figure(figsize=(10,5))
 plt.title("{} - Results".format(country))
 plt.plot(df_forecast.index,df_forecast["confirmed"],label="confirmed")
 plt.plot(df_forecast.index,df_forecast["confirmed_predicted"],label="confirmed_predicted")
-#ax.fill_between(x, (y-ci), (y+ci), color='b', alpha=.1)
 plt.fill_between(df_forecast.index,df_forecast["confirm_min"],df_forecast["confirm_max"],color="indigo",alpha=0.09,label="Confidence Interval")
 plt.legend()
 plt.show()

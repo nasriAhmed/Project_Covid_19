@@ -1,27 +1,34 @@
+from datetime import datetime
+
+#Importer des bibio
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from keras.preprocessing.sequence import TimeseriesGenerator
 from keras.models import Sequential
-from keras.layers import Dense, LSTM, Dropout, Activation,GRU
+from keras.layers import Dense, LSTM, Dropout, Activation,Bidirectional
 from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow import keras
+import tensorflow as tf
+import pennylane as qml
+from pennylane.operation import Operation, AnyWires
 import time
-url = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
+
+#******** Étape 1: Collecte des données *********************
+url = "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
 df_confirmed = pd.read_csv(url)
 
 country = 'Tunisia';
 df_confirmed1 = df_confirmed[df_confirmed["Country/Region"] == country]
 
 
-## structuring times eries data
+##******************* structuring times eries data *************
 df_confirmed2 = pd.DataFrame(df_confirmed1[df_confirmed1.columns[4:]].sum(),columns=["confirmed"])
 df_confirmed2.index = pd.to_datetime(df_confirmed2.index,format='%m/%d/%y')
 df_confirmed2.tail()
 df_new = df_confirmed2[["confirmed"]]
 print(df_new)
-plt.show()
-
 
 #*************Étape 2: prétraitement des données******************
 
@@ -45,7 +52,8 @@ print(scaled_train[-5:])
 
 n_input = 5  ## number of steps
 n_features = 1 ## number of features you want to predict (for univariate time series n_features=1)
-generator = TimeseriesGenerator(scaled_train,scaled_train,length = n_input,batch_size=1)
+generator = tf.keras.preprocessing.sequence.TimeseriesGenerator(scaled_train,scaled_train,length = n_input,batch_size=1)
+
 
 len(scaled_train)
 len(generator)
@@ -55,81 +63,96 @@ x,y = generator[50]
 #x → Réseau de neurones
 #y - mise à jour des pondérations
 print((x,y))
-#from tensorflow.keras.models import Sequential
-#from tensorflow.keras.layers import Dense,LSTM,Dropout
-import tensorflow as tf
-#************* Construction du modèle LSTM ***************
+#Quantum Model
+from tensorflow.keras.layers import Bidirectional
+from tensorflow.keras.layers import LSTM
 
+n_qubits = 4
+dev = qml.device('default.qubit', wires=n_qubits)
 
+@qml.qnode(dev)
+def qnode(inputs, weights_0, weight_1):
+    qml.RX(inputs[0], wires=0)
+    qml.RX(inputs[1], wires=1)
+    qml.Rot(*weights_0, wires=0)
+    qml.RY(weight_1, wires=1)
+    qml.CNOT(wires=[0, 1])
+    return qml.expval(qml.PauliZ(0)), qml.expval(qml.PauliZ(1))
+weight_shapes = {"weights_0": 3, "weight_1":1}
+clayer1 = tf.keras.layers.Bidirectional(LSTM(10, return_sequences=True),input_shape=(n_input,n_features))
+clayer2 = tf.keras.layers.Bidirectional(LSTM(10))
+qalyer3 = tf.keras.layers.Dense(15)
 
-model = Sequential()
-model.add(GRU(5,activation="relu",input_shape=(n_input,n_features)))
-model.add(Dense(75, activation='relu'))
+qlayer = qml.qnn.KerasLayer(qnode, weight_shapes, output_dim=2)
+clayer6 = tf.keras.layers.Dense(1)
+hybrid_model = tf.keras.models.Sequential([clayer1,clayer2,qlayer,clayer6])
+opt = tf.keras.optimizers.SGD(learning_rate=0.5)
+dot_img_file = '../Dataset/model_simple_Blstm_quantum_medical.png'
+tf.keras.utils.plot_model(hybrid_model, to_file=dot_img_file, show_shapes=True)
+hybrid_model.compile(opt, loss='mae')
 
-model.add(Dense(1))
-#Adam est un algorithme d'optimisation qui peut être utilisé à la place de la procédure classique de descente de
-# gradient stochastique pour mettre à jour les poids du réseau itératif en fonction des données d'entraînement
-
-#tf.keras.utils.plot_model(model, to_file=dot_img_file, show_shapes=True)
-model.compile(optimizer="adam",loss="mse")
-
-model.summary()
-print(model.summary())
+print("*****")
+print(hybrid_model.layers)
+print("*****")
 #***** validation set *******
 validation_set = np.append(scaled_train[55],scaled_test)
-print("****")
-print(validation_set)
-print("****")
 validation_set= validation_set.reshape(6,1)
 validation_set
 
 ## how to decide num of inputs ,
 n_input = 5
 n_features = 1
-validation_gen = TimeseriesGenerator(validation_set,validation_set,length=5,batch_size=1)
-
+validation_gen = tf.keras.preprocessing.sequence.TimeseriesGenerator(validation_set,validation_set,length=5,batch_size=1)
+print("validation_gen")
+print(validation_gen)
 validation_gen[0][0].shape,validation_gen[0][1].shape
-
-#Entraîner le modèle
 start = time.time()
+#Entraîner le modèle
 early_stop = EarlyStopping(monitor='val_loss',patience=20,restore_best_weights=True)
-model.fit_generator(generator,validation_data=validation_gen,epochs=100,callbacks=[early_stop],steps_per_epoch=10)
+hybrid_model.fit(generator,validation_data=validation_gen,epochs=100,callbacks=[early_stop],steps_per_epoch=10)
+
 #100 itération
 # « restore_best_weights» qui prend le meilleur poids des itérations
-x = model.fit_generator(generator,validation_data=validation_gen,epochs=100,callbacks=[early_stop],steps_per_epoch=10)
+x = hybrid_model.fit(generator,validation_data=validation_gen,epochs=100,callbacks=[early_stop],steps_per_epoch=10)
 print(x)
-# number of samples
 print("The time used to execute this is given below")
 end = time.time()
 print(end - start)
 #****************  Performance du modèle *************
 
-model.history.history.keys()
-myloss = model.history.history["val_loss"]
-#plt.title("validation loss vs epochs")
-#plt.plot(range(len(myloss)),myloss)
+hybrid_model.history.history.keys()
+myloss = hybrid_model.history.history["val_loss"]
+plt.title("validation loss vs epochs")
+plt.plot(range(len(myloss)),myloss)
 
 #prévision
 ## holding predictions
+
+
 test_prediction = []
 
 ##last n points from training set
 first_eval_batch = scaled_train[-n_input:]
 current_batch = first_eval_batch.reshape(1,n_input,n_features)
+
 current_batch.shape
 print("******")
 print(current_batch)
 print(current_batch.shape)
+
 ## how far in future we can predict
 for i in range(len(test)+7):
-    current_pred = model.predict(current_batch)[0]
-    print("Prediction")
+    current_pred = hybrid_model.predict(current_batch)[0]
+    print("current_pred")
     print(current_pred)
     test_prediction.append(current_pred)
-    current_batch = np.append(current_batch[:,1:,:],[[current_pred]],axis=1)
-
+    current_batch = np.append(current_batch[:,1:,:], [[current_pred]], axis=1) #a verifier
 print(test_prediction)
-
+print(current_pred)
+print("*****")
+print(hybrid_model.build(input_shape=(n_input,n_features)))
+print(hybrid_model.summary())
+print("*****")
 ### inverse scaled data
 #La sortie est une donnée normalisée, nous appliquons donc des transformations inverses aux éléments suivant
 true_prediction = scaler.inverse_transform(test_prediction)
@@ -146,7 +169,7 @@ df_forecast.loc[:,"confirmed_predicted"] = true_prediction[:,0]
 df_forecast.loc[:,"confirmed"] = test["confirmed"]
 
 print(df_forecast)
-df_forecast.plot(title= country + " Predictions for next 7 days")
+df_forecast.plot(title="Tunisia Predictions for next 7 days")
 plt.show()
 
 #****MAPE******
@@ -154,17 +177,22 @@ MAPE = np.mean(np.abs(np.array(df_forecast["confirmed"][:5]) - np.array(df_forec
 print("MAPE is " + str(MAPE*100) + " %")
 
 #****RMSE******
-print("MAPE is " + str(MAPE*100) + " %")
-from math import sqrt
-from sklearn.metrics import mean_squared_error
-#****RMSE******
-RMSE = sqrt(mean_squared_error(np.array(df_forecast["confirmed"][:5]),np.array(df_forecast["confirmed_predicted"][:5])))
+from sklearn.metrics import mean_squared_error, r2_score
+import math
 
-print("RMSE is " + str((RMSE)))
-
+MSE = np.square((np.array(df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5]))).mean()
+RMSE = math.sqrt(MSE)
+print("Root Mean Square Error:\n")
+print(RMSE)
+print("R2-Score")
+r2= r2_score((df_forecast["confirmed"][:5]),(df_forecast["confirmed_predicted"][:5]))
+print(r2)
 #****stdev******
 stdev = np.sqrt(1/(5-2) * RMSE)
 print(stdev)
+ #****MAE
+mae = np.mean(np.abs((df_forecast["confirmed"][:5]) - np.array(df_forecast["confirmed_predicted"][:5])))
+print("MAE is " + str(mae) + " %")
 
 # calculate prediction interval
 interval = 1.96 * stdev
@@ -178,11 +206,10 @@ print(df_forecast)
 df_forecast["Model Accuracy"] = round((1-MAPE),2)
 print(df_forecast)
 
-fig= plt.figure(figsize=(10,5))
-plt.title("{} - Results".format(country))
+fig= plt.figure(figsize=(8,5))
+plt.title("{} - Results".format('Tunisia'))
 plt.plot(df_forecast.index,df_forecast["confirmed"],label="confirmed")
 plt.plot(df_forecast.index,df_forecast["confirmed_predicted"],label="confirmed_predicted")
-#ax.fill_between(x, (y-ci), (y+ci), color='b', alpha=.1)
-plt.fill_between(df_forecast.index,df_forecast["confirm_min"],df_forecast["confirm_max"],color="indigo",alpha=0.09,label="Confidence Interval")
+plt.fill_between(df_forecast.index,df_forecast["confirm_min"],df_forecast["confirm_max"],color="indigo",alpha=0.1,label="Confidence Interval")
 plt.legend()
 plt.show()
